@@ -64,7 +64,7 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        SharedPreferences prefs = Utilities.getPrefs(mLauncher);
+        mPrefs = Utilities.getPrefs(mLauncher);
         mOverlayCallbacks = new OverlayCallbackImpl(mLauncher);
         mLauncherClient = new LauncherClient(mLauncher, mOverlayCallbacks, getClientOptions(mPrefs));
         mQsbController = new QsbAnimationController(mLauncher);
@@ -110,7 +110,30 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
 
     @Override
     public void onDestroy() {
-        mLauncherClient.onDestroy();
+        if (!mLauncherClient.isDestroyed()) {
+            mLauncherClient.getActivity().unregisterReceiver(mLauncherClient.mInstallListener);
+        }
+
+        mLauncherClient.setDestroyed(true);
+        mLauncherClient.getBaseService().disconnect();
+        if (mLauncherClient.getOverlayCallback() != null) {
+            mLauncherClient.getOverlayCallback().mClient = null;
+            mLauncherClient.getOverlayCallback().mWindowManager = null;
+            mLauncherClient.getOverlayCallback().mWindow = null;
+            mLauncherClient.setOverlayCallback(null);
+        }
+
+        ClientService service = mLauncherClient.getClientService();
+        LauncherClient client = service.getClient();
+        if (client != null && client.equals(mLauncherClient)) {
+            service.mWeakReference = null;
+            if (!mLauncherClient.getActivity().isChangingConfigurations()) {
+                service.disconnect();
+                if (ClientService.sInstance == service) {
+                    ClientService.sInstance = null;
+                }
+            }
+        }
 
         Utilities.getPrefs(mLauncher).unregisterOnSharedPreferenceChangeListener(this);
         WallpaperColorInfo.getInstance(mLauncher).removeOnChangeListener(this);
@@ -138,7 +161,10 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
 
     @Override
     public void onDetachedFromWindow() {
-        mLauncherClient.onDetachedFromWindow();
+        if (!mLauncherClient.isDestroyed()) {
+            mLauncherClient.getEventInfo().parse(0, "detachedFromWindow", 0.0f);
+            mLauncherClient.setParams(null);
+        }
     }
 
     @Override
@@ -172,9 +198,17 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
     }
 
     @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+    public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
         if (SettingsActivity.KEY_MINUS_ONE.equals(key)) {
-            mLauncherClient.setClientOptions(getClientOptions(sharedPreferences));
+            ClientOptions clientOptions = getClientOptions(prefs);
+            if (clientOptions.options != mLauncherClient.mFlags) {
+                mLauncherClient.mFlags = clientOptions.options;
+                if (mLauncherClient.getParams() != null) {
+                    mLauncherClient.updateConfiguration();
+                }
+                mLauncherClient.getEventInfo().parse("setClientOptions ", mLauncherClient.mFlags);
+            }
+        }
     }
 
     @Override
@@ -197,12 +231,10 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
         }
     }
 
-    private LauncherClient.ClientOptions getClientOptions(SharedPreferences prefs) {
+    private ClientOptions getClientOptions(SharedPreferences prefs) {
         boolean hasPackage = LineageUtils.hasPackageInstalled(mLauncher, SEARCH_PACKAGE);
         boolean isEnabled = prefs.getBoolean(SettingsActivity.KEY_MINUS_ONE, true);
-        return new LauncherClient.ClientOptions(hasPackage && isEnabled,
-                true, /* enableHotword */
-                true /* enablePrewarming */
-        );
+        int canUse = hasPackage && isEnabled ? 1 : 0;
+        return new ClientOptions(canUse | 2 | 4 | 8);
     }
 }
