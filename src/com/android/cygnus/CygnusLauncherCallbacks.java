@@ -31,6 +31,10 @@ import com.android.launcher3.uioverrides.WallpaperColorInfo.OnChangeListener;
 import com.android.launcher3.util.Themes;
 import com.android.launcher3.Utilities;
 
+import com.cygnus.launcher.qsb.QsbAnimationController;
+
+import com.google.android.libraries.gsa.launcherclient.ClientOptions;
+import com.google.android.libraries.gsa.launcherclient.ClientService;
 import com.google.android.libraries.gsa.launcherclient.LauncherClient;
 
 import java.io.FileDescriptor;
@@ -45,6 +49,8 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
 
     private OverlayCallbackImpl mOverlayCallbacks;
     private LauncherClient mLauncherClient;
+    private QsbAnimationController mQsbController;
+    private SharedPreferences mPrefs;
 
     private boolean mStarted;
     private boolean mResumed;
@@ -60,7 +66,8 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
     public void onCreate(Bundle savedInstanceState) {
         SharedPreferences prefs = Utilities.getPrefs(mLauncher);
         mOverlayCallbacks = new OverlayCallbackImpl(mLauncher);
-        mLauncherClient = new LauncherClient(mLauncher, mOverlayCallbacks, getClientOptions(prefs));
+        mLauncherClient = new LauncherClient(mLauncher, mOverlayCallbacks, getClientOptions(mPrefs));
+        mQsbController = new QsbAnimationController(mLauncher);
         mOverlayCallbacks.setClient(mLauncherClient);
         mUiInformation.putInt("system_ui_visibility", mLauncher.getWindow().getDecorView().getSystemUiVisibility());
         WallpaperColorInfo instance = WallpaperColorInfo.getInstance(mLauncher);
@@ -168,7 +175,6 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         if (SettingsActivity.KEY_MINUS_ONE.equals(key)) {
             mLauncherClient.setClientOptions(getClientOptions(sharedPreferences));
-        }
     }
 
     @Override
@@ -180,6 +186,17 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
         mLauncherClient.redraw(mUiInformation);
     }
 
+    @Override
+    public LauncherClient getClient() {
+        return mLauncherClient;
+    }
+
+    @Override
+    public QsbAnimationController getQsbController() {
+        return mQsbController;
+        }
+    }
+
     private LauncherClient.ClientOptions getClientOptions(SharedPreferences prefs) {
         boolean hasPackage = LineageUtils.hasPackageInstalled(mLauncher, SEARCH_PACKAGE);
         boolean isEnabled = prefs.getBoolean(SettingsActivity.KEY_MINUS_ONE, true);
@@ -187,17 +204,5 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
                 true, /* enableHotword */
                 true /* enablePrewarming */
         );
-    }
-
-    public static int primaryColor(WallpaperColorInfo wallpaperColorInfo, Context context, int alpha) {
-        return compositeAllApps(ColorUtils.setAlphaComponent(wallpaperColorInfo.getMainColor(), alpha), context);
-    }
-
-    public static int secondaryColor(WallpaperColorInfo wallpaperColorInfo, Context context, int alpha) {
-        return compositeAllApps(ColorUtils.setAlphaComponent(wallpaperColorInfo.getSecondaryColor(), alpha), context);
-    }
-
-    public static int compositeAllApps(int color, Context context) {
-        return ColorUtils.compositeColors(Themes.getAttrColor(context, R.attr.allAppsScrimColor), color);
     }
 }

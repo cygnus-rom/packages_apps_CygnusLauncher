@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Cygnus
+ * Copyright (C) 2019 Cygnus OS
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.launcher3.cygnus;
+package com.cygnus.launcher.search;
 
-import com.android.launcher3.Launcher;
-import com.android.launcher3.LauncherCallbacks;
+import com.android.launcher3.allapps.search.AllAppsSearchBarController.Callbacks;
+import com.android.launcher3.util.ComponentKey;
 
-public class CygnusLauncher extends Launcher {
+import java.util.ArrayList;
 
-    public CygnusLauncher() {
-        setLauncherCallbacks(new CygnusLauncherCallbacks(this));
-    }
+public class SearchResult {
 
-    public LauncherCallbacks getLauncherCallbacks() {
-        return mLauncherCallbacks;
+    public final ArrayList<ComponentKey> mApps = new ArrayList();
+    public final Callbacks mCallbacks;
+    public final String mQuery;
+
+    public SearchResult(String query, Callbacks callbacks) {
+        mQuery = query;
+        mCallbacks = callbacks;
     }
 }
