@@ -229,7 +229,6 @@ public class CygnusLauncherCallbacks implements LauncherCallbacks,
     public QsbAnimationController getQsbController() {
         return mQsbController;
         }
-    }
 
     private ClientOptions getClientOptions(SharedPreferences prefs) {
         boolean hasPackage = LineageUtils.hasPackageInstalled(mLauncher, SEARCH_PACKAGE);
